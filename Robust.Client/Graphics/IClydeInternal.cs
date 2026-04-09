@@ -21,6 +21,16 @@ namespace Robust.Client.Graphics
         bool SeparateWindowThread { get; }
         bool InitializePreWindowing();
         void EnterWindowLoop();
+
+        /// <summary>
+        ///     If set before <see cref="InitializePostWindowing"/>, RT will wrap
+        ///     this existing HWND as its main window instead of creating a new
+        ///     OS window. Used by embedding hosts (e.g. a WPF app with an
+        ///     <c>HwndHost</c> child). See
+        ///     <see cref="GameControllerOptions.MainWindowExternalHwnd"/>.
+        /// </summary>
+        IntPtr? ExternalMainWindowHwnd { get; set; }
+
         bool InitializePostWindowing();
         void Ready();
         void TerminateWindowLoop();

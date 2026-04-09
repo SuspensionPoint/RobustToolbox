@@ -171,6 +171,8 @@ namespace Robust.Client.Graphics.Clyde
             throw new InvalidOperationException("ClydeHeadless does not use windowing threads");
         }
 
+        public IntPtr? ExternalMainWindowHwnd { get; set; }
+
         public bool InitializePostWindowing()
         {
             IsInitialized = true;
