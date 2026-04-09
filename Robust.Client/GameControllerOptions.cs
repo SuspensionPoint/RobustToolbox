@@ -1,3 +1,4 @@
+using System;
 using Robust.Shared;
 using Robust.Shared.Utility;
 
@@ -9,6 +10,16 @@ namespace Robust.Client
         ///     Whether content sandboxing will be enabled & enforced.
         /// </summary>
         public bool Sandboxing { get; init; } = true;
+
+        /// <summary>
+        ///     On Windows, if set, RT will wrap this existing HWND as its main
+        ///     window instead of creating a new OS window. Used for embedding
+        ///     RT inside another .NET host app such as a WPF window that wants
+        ///     to render RT content into an <c>HwndHost</c> child. Ownership of
+        ///     the HWND stays with the host application and RT will not
+        ///     destroy it on shutdown.
+        /// </summary>
+        public IntPtr? MainWindowExternalHwnd { get; init; }
 
         // TODO: Expose mounting methods to games using Robust as a library.
         /// <summary>
