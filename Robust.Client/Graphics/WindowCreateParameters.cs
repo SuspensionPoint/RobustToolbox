@@ -27,6 +27,29 @@ namespace Robust.Client.Graphics
         /// Specifies window styling options for the created window.
         /// </summary>
         public OSWindowStyles Styles;
+
+        /// <summary>
+        /// On Windows, if set, RT will wrap this existing HWND instead of creating a new
+        /// top level window. Ownership of the HWND stays with the caller. This is used
+        /// for embedding RT inside another application (e.g. a WPF host that renders
+        /// RT content into an <c>HwndHost</c> child).
+        /// </summary>
+        public IntPtr? ExternalHWnd;
+
+        /// <summary>
+        /// If false, RT will not destroy the window on shutdown. This is required when
+        /// <see cref="ExternalHWnd"/> is set so RT does not tear down a window it does
+        /// not own. Default is <c>true</c> (RT owns the window it created).
+        /// </summary>
+        public bool WindowOwned = true;
+
+        /// <summary>
+        /// If true, the caller has already established a graphics context for the
+        /// window and RT should skip its own GL context creation. Reserved for future
+        /// use by embedding hosts that want to share a context with another renderer.
+        /// Leave false for now.
+        /// </summary>
+        public bool UseExternalGraphicsContext;
     }
 
     /// <summary>
