@@ -21,6 +21,18 @@ namespace Robust.Client
         /// </summary>
         public IntPtr? MainWindowExternalHwnd { get; init; }
 
+        /// <summary>
+        ///     Optional callback invoked on the game thread after RT finishes
+        ///     initializing (all systems resolved, content loaded, state
+        ///     machine ready) but before the main game loop starts. Embedding
+        ///     hosts use this to configure starting state, for example
+        ///     switching to a custom state or loading a map, without having
+        ///     to fork the RT bootstrap flow. Exceptions thrown by the
+        ///     callback are logged and swallowed so a buggy host does not
+        ///     take down RT startup.
+        /// </summary>
+        public Action? PostInitCallback { get; init; }
+
         // TODO: Expose mounting methods to games using Robust as a library.
         /// <summary>
         ///     Lists of mount options to mount.
