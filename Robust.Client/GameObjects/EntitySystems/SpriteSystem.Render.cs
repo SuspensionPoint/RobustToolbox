@@ -36,12 +36,42 @@ public sealed partial class SpriteSystem
         Vector2 worldPosition,
         Direction? overrideDirection)
     {
-        // TODO SPRITE RENDERING
-        // Add fast path for simple sprites.
-        // I.e., when a sprite is modified, check if it is "simple". If it is. cache texture information in a struct
-        // and use a fast path here.
-        // E.g., simple 1-directional, 1-layer sprites can basically become a direct texture draw call. (most in game items).
-        // Similarly, 1-directional multi-layer sprites can become a sequence of direct draw calls (most in game walls).
+        // Fast path for simple sprites: Dir1, non-animated, no custom shaders.
+        // Cache is lazily rebuilt on first render after any visual property change.
+        if (_simpleFastPathEnabled && overrideDirection == null)
+        {
+            ref var cache = ref sprite.Comp._simpleCache;
+            if (!cache.Valid)
+                TryBuildSimpleCache(sprite);
+
+            if (cache.Valid)
+            {
+                SimpleSpriteCount++;
+
+                var fastEntityMatrix = Matrix3Helpers.CreateTransform(
+                    worldPosition,
+                    sprite.Comp.NoRotation ? -eyeRotation : worldRotation);
+                var fastSpriteMatrix = Matrix3x2.Multiply(sprite.Comp.LocalMatrix, fastEntityMatrix);
+
+                for (var i = 0; i < cache.LayerCount; i++)
+                {
+                    ref var layer = ref cache.GetLayer(i);
+                    var transform = Matrix3x2.Multiply(layer.LayerMatrix, fastSpriteMatrix);
+                    drawingHandle.SetTransform(in transform);
+
+                    var color = layer.UnShaded
+                        ? new Color(new Vector4(-1) - layer.Color.RGBA)
+                        : layer.Color;
+
+                    drawingHandle.DrawTextureRectRegion(layer.Texture, layer.Quad, color);
+                }
+
+                return;
+            }
+        }
+
+        // Full path: used for complex sprites (animated, Dir4/8, custom shaders, etc.)
+        FullSpriteCount++;
 
         if (!sprite.Comp.IsInert)
             _queuedFrameUpdate.Add(sprite);
