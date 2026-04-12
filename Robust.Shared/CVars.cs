@@ -1012,6 +1012,13 @@ namespace Robust.Shared
         public static readonly CVarDef<double> RenderSpriteDirectionBias =
             CVarDef.Create("render.sprite_direction_bias", -0.05, CVar.ARCHIVE | CVar.CLIENTONLY);
 
+        /// <summary>
+        /// When enabled, sprites that qualify as "simple" (Dir1, non-animated, no custom shaders)
+        /// use a fast render path that skips full layer iteration.
+        /// </summary>
+        public static readonly CVarDef<bool> RenderSpriteSimpleFastPath =
+            CVarDef.Create("render.sprite_simple_fast_path", true, CVar.CLIENTONLY);
+
         public static readonly CVarDef<string> RenderFOVColor =
             CVarDef.Create("render.fov_color", Color.Black.ToHex(), CVar.REPLICATED | CVar.SERVER);
 

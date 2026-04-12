@@ -54,6 +54,18 @@ namespace Robust.Client.GameObjects
         private ISawmill _sawmill = default!;
         private EntityQuery<SpriteComponent> _query;
 
+        private bool _simpleFastPathEnabled;
+
+        /// <summary>
+        /// Number of sprites that took the simple fast path this frame.
+        /// </summary>
+        public int SimpleSpriteCount { get; private set; }
+
+        /// <summary>
+        /// Number of sprites that took the full render path this frame.
+        /// </summary>
+        public int FullSpriteCount { get; private set; }
+
         public override void Initialize()
         {
             base.Initialize();
@@ -64,6 +76,7 @@ namespace Robust.Client.GameObjects
             SubscribeLocalEvent<SpriteComponent, ComponentInit>(OnInit);
 
             Subs.CVar(_cfg, CVars.RenderSpriteDirectionBias, OnBiasChanged, true);
+            Subs.CVar(_cfg, CVars.RenderSpriteSimpleFastPath, v => _simpleFastPathEnabled = v, true);
             _sawmill = _logManager.GetSawmill("sprite");
             _query = GetEntityQuery<SpriteComponent>();
         }
@@ -114,6 +127,9 @@ namespace Robust.Client.GameObjects
         /// <inheritdoc />
         public override void FrameUpdate(float frameTime)
         {
+            SimpleSpriteCount = 0;
+            FullSpriteCount = 0;
+
             while (_inertUpdateQueue.TryDequeue(out var sprite))
             {
                 DoUpdateIsInert(sprite);
