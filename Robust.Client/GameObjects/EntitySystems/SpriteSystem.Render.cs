@@ -191,4 +191,78 @@ public sealed partial class SpriteSystem
         var uv = new Vector4(sr.Left, sr.Bottom, sr.Right, sr.Top);
         shader.SetParameter(paramUV, uv);
     }
+
+    /// <summary>
+    /// Attempt to classify a sprite as "simple" and populate its render cache.
+    /// Simple sprites are Dir1, non-animated, have no custom shaders, and have
+    /// a small number of visible layers. If the sprite does not qualify,
+    /// <see cref="SimpleSpriteCache.Valid"/> remains false.
+    /// </summary>
+    private void TryBuildSimpleCache(Entity<SpriteComponent> sprite)
+    {
+        ref var cache = ref sprite.Comp._simpleCache;
+        cache.Valid = false;
+        cache.LayerCount = 0;
+
+        // Sprite-level disqualifiers
+        if (!sprite.Comp.IsInert)
+            return;
+        if (sprite.Comp.PostShader != null)
+            return;
+        if (sprite.Comp.RaiseShaderEvent)
+            return;
+        if (sprite.Comp.GetScreenTexture)
+            return;
+        if (sprite.Comp.GranularLayersRendering)
+            return;
+        if (sprite.Comp.EnableDirectionOverride)
+            return;
+
+        var visibleCount = 0;
+
+        foreach (var layer in sprite.Comp.Layers)
+        {
+            if (!layer.Visible || layer.Blank)
+                continue;
+
+            // Per-layer disqualifiers
+            var state = layer._actualState;
+            if (state == null)
+                return; // No resolved state — can't cache
+
+            if (state.RsiDirections != RsiDirectionType.Dir1)
+                return;
+
+            if (layer.Shader != null)
+                return;
+
+            if (layer.CopyToShaderParameters != null)
+                return;
+
+            if (layer.DirOffset != DirectionOffset.None)
+                return;
+
+            if (visibleCount >= SimpleSpriteCache.MaxSimpleLayers)
+                return; // Too many layers
+
+            // Resolve the texture (Dir1 = always South, non-animated = always frame 0)
+            var texture = state.GetFrame(RsiDirection.South, 0);
+            var textureSize = texture.Size / (float)EyeManager.PixelsPerMeter;
+
+            ref var cached = ref cache.GetLayer(visibleCount);
+            cached.Texture = texture;
+            cached.Color = sprite.Comp.color * layer.Color;
+            cached.Quad = Box2.FromDimensions(textureSize / -2, textureSize);
+            cached.LayerMatrix = layer.LocalMatrix;
+            cached.UnShaded = layer.UnShaded;
+
+            visibleCount++;
+        }
+
+        if (visibleCount == 0)
+            return; // Nothing to draw
+
+        cache.LayerCount = visibleCount;
+        cache.Valid = true;
+    }
 }
