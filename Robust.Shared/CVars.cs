@@ -1029,6 +1029,21 @@ namespace Robust.Shared
         public static readonly CVarDef<bool> RenderTileEdges =
             CVarDef.Create("render.tile_edges", true, CVar.CLIENTONLY);
 
+        /// <summary>
+        /// Minimum screen-space size (in pixels) for a sprite to be rendered.
+        /// Sprites smaller than this are culled. Set to 0 to disable culling.
+        /// Helps performance at extreme zoom-out levels.
+        /// </summary>
+        public static readonly CVarDef<float> RenderMinSpriteSize =
+            CVarDef.Create("render.min_sprite_size", 0f, CVar.CLIENTONLY);
+
+        /// <summary>
+        /// When enabled, uses a bucket sort by DrawDepth/RenderOrder instead of a full comparison sort
+        /// for sprite draw ordering. Faster when many sprites are visible.
+        /// </summary>
+        public static readonly CVarDef<bool> RenderBucketSort =
+            CVarDef.Create("render.bucket_sort", true, CVar.CLIENTONLY);
+
         /*
          *  CONTROLS
          */

@@ -293,7 +293,7 @@ namespace Robust.Client.Graphics.Clyde
 
             RenderTexture? entityPostRenderTarget = null;
             bool flushed = false;
-            for (var i = 0; i < _drawingSpriteList.Count; i++)
+            for (var i = 0; i < _spriteFilteredCount; i++)
             {
                 ref var entry = ref _drawingSpriteList[indexList[i]];
 
@@ -425,7 +425,7 @@ namespace Robust.Client.Graphics.Clyde
             ArrayPool<int>.Shared.Return(indexList);
             entityPostRenderTarget?.DisposeDeferred();
 
-            _debugStats.Entities += _drawingSpriteList.Count;
+            _debugStats.Entities += _spriteFilteredCount;
             _drawingSpriteList.Clear();
             FlushRenderQueue();
         }

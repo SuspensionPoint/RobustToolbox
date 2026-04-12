@@ -25,20 +25,136 @@ internal partial class Clyde
     private readonly RefList<SpriteData> _drawingSpriteList = new();
     private const int _spriteProcessingBatchSize = 25;
 
+    // LOD culling: squared minimum screen-space size threshold (pixels²).
+    // Set via render.min_sprite_size CVar. 0 = disabled.
+    private float _minSpriteSizeSquared;
+
+    // Bucket sort toggle, set via render.bucket_sort CVar.
+    private bool _useBucketSort;
+
+    // DrawDepth range constants for bucket sort.
+    // Content DrawDepth enum: LowFloors = -20, Overlays = +14.
+    // We add a margin of 1 on each side for safety.
+    private const int DrawDepthMin = -21;
+    private const int DrawDepthMax = 15;
+    private const int DrawDepthRange = DrawDepthMax - DrawDepthMin + 1; // 37
+
+    // Reusable bucket arrays to avoid per-frame allocation.
+    // Buckets are indexed by (drawDepth - DrawDepthMin).
+    // Each bucket stores indices into _drawingSpriteList.
+    private int[] _bucketCounts = new int[DrawDepthRange];
+    private int[] _bucketOffsets = new int[DrawDepthRange];
+
     private void GetSprites(MapId map, Viewport view, IEye eye, Box2Rotated worldBounds, out int[] indexList)
     {
         ProcessSpriteEntities(map, view, eye, worldBounds, _drawingSpriteList);
 
+        var totalCount = _drawingSpriteList.Count;
+
         // We use a separate list for indexing sprites so that the sort is faster.
-        indexList = ArrayPool<int>.Shared.Rent(_drawingSpriteList.Count);
+        indexList = ArrayPool<int>.Shared.Rent(totalCount);
 
-        // populate index list
-        for (var i = 0; i < _drawingSpriteList.Count; i++)
-            indexList[i] = i;
+        // Populate index list, optionally filtering by screen-space size (LOD culling).
+        int filteredCount;
+        if (_minSpriteSizeSquared > 0)
+        {
+            filteredCount = 0;
+            for (var i = 0; i < totalCount; i++)
+            {
+                ref var data = ref _drawingSpriteList[i];
+                var bb = data.SpriteScreenBB;
+                var w = bb.Right - bb.Left;
+                var h = bb.Top - bb.Bottom;
+                if (w * w + h * h >= _minSpriteSizeSquared)
+                {
+                    indexList[filteredCount++] = i;
+                }
+            }
+        }
+        else
+        {
+            filteredCount = totalCount;
+            for (var i = 0; i < totalCount; i++)
+                indexList[i] = i;
+        }
 
-        // sort index list
-        // TODO better sorting? parallel merge sort?
-        Array.Sort(indexList, 0, _drawingSpriteList.Count, new SpriteDrawingOrderComparer(_drawingSpriteList));
+        // Sort index list.
+        if (_useBucketSort && filteredCount > 0)
+        {
+            BucketSortSprites(indexList, filteredCount);
+        }
+        else
+        {
+            Array.Sort(indexList, 0, filteredCount, new SpriteDrawingOrderComparer(_drawingSpriteList));
+        }
+
+        // Store the filtered count so callers know how many valid entries there are.
+        // The existing code uses _drawingSpriteList.Count for iteration bounds after GetSprites.
+        // We overwrite _spriteFilteredCount for use by the caller.
+        _spriteFilteredCount = filteredCount;
+    }
+
+    /// <summary>
+    /// Number of sprites that passed LOD filtering in the last GetSprites call.
+    /// Used instead of _drawingSpriteList.Count when LOD culling is active.
+    /// </summary>
+    internal int _spriteFilteredCount;
+
+    /// <summary>
+    /// Bucket sort: groups sprites by DrawDepth, then sorts within each bucket by
+    /// RenderOrder, Y position, and EntityUid. Much faster than a full comparison sort
+    /// when many sprites are visible, because DrawDepth has a small integer range.
+    /// </summary>
+    private void BucketSortSprites(int[] indexList, int count)
+    {
+        var list = _drawingSpriteList;
+
+        // Phase 1: Count entries per DrawDepth bucket.
+        Array.Clear(_bucketCounts, 0, DrawDepthRange);
+
+        for (var i = 0; i < count; i++)
+        {
+            var depth = list[indexList[i]].Sprite.DrawDepth;
+            var bucket = Math.Clamp(depth - DrawDepthMin, 0, DrawDepthRange - 1);
+            _bucketCounts[bucket]++;
+        }
+
+        // Phase 2: Compute bucket offsets (prefix sum).
+        _bucketOffsets[0] = 0;
+        for (var b = 1; b < DrawDepthRange; b++)
+        {
+            _bucketOffsets[b] = _bucketOffsets[b - 1] + _bucketCounts[b - 1];
+        }
+
+        // Phase 3: Scatter indices into bucket positions using a temporary array.
+        var scattered = ArrayPool<int>.Shared.Rent(count);
+        // Copy bucket offsets so we can increment them during scatter.
+        var writePos = ArrayPool<int>.Shared.Rent(DrawDepthRange);
+        Array.Copy(_bucketOffsets, writePos, DrawDepthRange);
+
+        for (var i = 0; i < count; i++)
+        {
+            var idx = indexList[i];
+            var depth = list[idx].Sprite.DrawDepth;
+            var bucket = Math.Clamp(depth - DrawDepthMin, 0, DrawDepthRange - 1);
+            scattered[writePos[bucket]++] = idx;
+        }
+
+        // Copy scattered back into indexList.
+        Array.Copy(scattered, indexList, count);
+        ArrayPool<int>.Shared.Return(scattered);
+        ArrayPool<int>.Shared.Return(writePos);
+
+        // Phase 4: Sort within each non-empty bucket by RenderOrder, Y, Uid.
+        var comparer = new SpriteIntraBucketComparer(list);
+        for (var b = 0; b < DrawDepthRange; b++)
+        {
+            var bucketCount = _bucketCounts[b];
+            if (bucketCount > 1)
+            {
+                Array.Sort(indexList, _bucketOffsets[b], bucketCount, comparer);
+            }
+        }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -216,6 +332,10 @@ internal partial class Clyde
         public float Cos { get;  init; }
     }
 
+    /// <summary>
+    /// Full comparison sort comparer — used as fallback when bucket sort is disabled.
+    /// Compares by DrawDepth, RenderOrder, Y position, then EntityUid.
+    /// </summary>
     private sealed class SpriteDrawingOrderComparer : IComparer<int>
     {
         private readonly RefList<SpriteData> _drawList;
@@ -242,6 +362,36 @@ internal partial class Clyde
             // compare the top of the sprite's BB for y-sorting. Because screen coordinates are flipped, the "top" of the BB is actually the "bottom".
             cmp = a.SpriteScreenBB.Top.CompareTo(b.SpriteScreenBB.Top);
 
+            if (cmp != 0)
+                return cmp;
+
+            return a.Uid.CompareTo(b.Uid);
+        }
+    }
+
+    /// <summary>
+    /// Intra-bucket comparer for the bucket sort path. Since all entries in a bucket share the same
+    /// DrawDepth, this only compares RenderOrder, Y position, and EntityUid.
+    /// </summary>
+    private sealed class SpriteIntraBucketComparer : IComparer<int>
+    {
+        private readonly RefList<SpriteData> _drawList;
+
+        public SpriteIntraBucketComparer(RefList<SpriteData> drawList)
+        {
+            _drawList = drawList;
+        }
+
+        public int Compare(int x, int y)
+        {
+            var a = _drawList[x];
+            var b = _drawList[y];
+
+            var cmp = a.Sprite.RenderOrder.CompareTo(b.Sprite.RenderOrder);
+            if (cmp != 0)
+                return cmp;
+
+            cmp = a.SpriteScreenBB.Top.CompareTo(b.SpriteScreenBB.Top);
             if (cmp != 0)
                 return cmp;
 
