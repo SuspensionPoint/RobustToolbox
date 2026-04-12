@@ -61,7 +61,8 @@ namespace Robust.Client.Graphics
 
         IClydeDebugInfo DebugInfo { get; }
 
-        IClydeDebugStats DebugStats { get; }
+        // IClydeDebugStats DebugStats is now declared on IClyde so embedding
+        // hosts can read it without IClydeInternal access.
 
         Texture GetStockTexture(ClydeStockTexture stockTexture);
         IEnumerable<(Clyde.Clyde.ClydeTexture, Clyde.Clyde.LoadedTexture)> GetLoadedTextures();

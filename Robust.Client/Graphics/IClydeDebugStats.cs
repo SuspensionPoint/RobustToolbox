@@ -1,9 +1,11 @@
 namespace Robust.Client.Graphics
 {
     /// <summary>
-    ///     Provides frame statistics about rendering.
+    ///     Provides frame statistics about rendering. Exposed on
+    ///     <see cref="IClyde.DebugStats"/> so embedding hosts can read
+    ///     last-frame draw call counts for benchmarking and HUD overlays.
     /// </summary>
-    internal interface IClydeDebugStats
+    public interface IClydeDebugStats
     {
         /// <summary>
         ///     The amount of draw calls sent to OpenGL last frame.

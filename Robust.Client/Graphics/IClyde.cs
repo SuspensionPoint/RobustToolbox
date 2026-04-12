@@ -23,6 +23,14 @@ namespace Robust.Client.Graphics
         IClydeWindow MainWindow { get; }
         IRenderTarget MainWindowRenderTarget => MainWindow.RenderTarget;
 
+        /// <summary>
+        ///     Per frame draw call and batching counts from the last
+        ///     completed render. Useful for HUD overlays and for hosts
+        ///     embedding RT that want to capture render perf metrics
+        ///     programmatically.
+        /// </summary>
+        IClydeDebugStats DebugStats { get; }
+
         Vector2i ScreenSize { get; }
 
         bool IsFocused { get; }
