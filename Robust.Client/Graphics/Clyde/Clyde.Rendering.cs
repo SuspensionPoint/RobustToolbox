@@ -610,14 +610,22 @@ namespace Robust.Client.Graphics.Clyde
             in Box2 texCoords)
         {
             EnsureBatchSpaceAvailable(4, GetQuadBatchIndexCount());
-            EnsureBatchState(texture, true, GetQuadBatchPrimitiveType(), _queuedShader, Matrix3x2.Identity);
 
-            // TODO RENDERING
-            // It's probably better to do this on the GPU.
-            bl = Vector2.Transform(bl, _currentMatrixModel);
-            br = Vector2.Transform(br, _currentMatrixModel);
-            tr = Vector2.Transform(tr, _currentMatrixModel);
-            tl = tr + bl - br;
+            if (_gpuVertexTransformEnabled)
+            {
+                // GPU path: pass model matrix to the batch, write raw object-space positions.
+                // The vertex shader multiplies: projectionMatrix * viewMatrix * modelMatrix * vec3(aPos, 1.0)
+                EnsureBatchState(texture, true, GetQuadBatchPrimitiveType(), _queuedShader, _currentMatrixModel);
+            }
+            else
+            {
+                // CPU path (legacy): bake transform into vertex positions, pass identity to batch.
+                EnsureBatchState(texture, true, GetQuadBatchPrimitiveType(), _queuedShader, Matrix3x2.Identity);
+                bl = Vector2.Transform(bl, _currentMatrixModel);
+                br = Vector2.Transform(br, _currentMatrixModel);
+                tr = Vector2.Transform(tr, _currentMatrixModel);
+                tl = tr + bl - br;
+            }
 
             // TODO: split batch if necessary.
             var vIdx = BatchVertexIndex;
@@ -717,10 +725,17 @@ namespace Robust.Client.Graphics.Clyde
         private void DrawLine(Vector2 a, Vector2 b, Color color)
         {
             EnsureBatchSpaceAvailable(2, 0);
-            EnsureBatchState(_stockTextureWhite.TextureId, false, BatchPrimitiveType.LineList, _queuedShader, Matrix3x2.Identity);
 
-            a = Vector2.Transform(a, _currentMatrixModel);
-            b = Vector2.Transform(b, _currentMatrixModel);
+            if (_gpuVertexTransformEnabled)
+            {
+                EnsureBatchState(_stockTextureWhite.TextureId, false, BatchPrimitiveType.LineList, _queuedShader, _currentMatrixModel);
+            }
+            else
+            {
+                EnsureBatchState(_stockTextureWhite.TextureId, false, BatchPrimitiveType.LineList, _queuedShader, Matrix3x2.Identity);
+                a = Vector2.Transform(a, _currentMatrixModel);
+                b = Vector2.Transform(b, _currentMatrixModel);
+            }
 
             // TODO: split batch if necessary.
             var vIdx = BatchVertexIndex;
