@@ -37,6 +37,21 @@ namespace Robust.Client.GameObjects
     [RegisterComponent]
     public sealed partial class SpriteComponent : Component, IComponentDebug, ISerializationHooks, IComponentTreeEntry<SpriteComponent>, IAnimationProperties
     {
+        /// <summary>
+        /// Pre-resolved render data for simple sprites. When valid, RenderSprite
+        /// skips layer iteration and emits draw calls directly from cached data.
+        /// </summary>
+        internal SimpleSpriteCache _simpleCache;
+
+        /// <summary>
+        /// Invalidate the simple sprite cache. Must be called whenever any visual
+        /// property changes that could affect rendering output.
+        /// </summary>
+        internal void InvalidateSimpleCache()
+        {
+            _simpleCache.Valid = false;
+        }
+
         public const string LogCategory = "go.comp.sprite";
 
         [Dependency] private readonly IResourceCache resourceCache = default!;
@@ -1839,5 +1854,60 @@ namespace Robust.Client.GameObjects
             var sys = IoCManager.Resolve<IEntitySystemManager>().GetEntitySystem<SpriteSystem>();
             return sys.GetPrototypeIcon(prototype);
         }
+    }
+
+    /// <summary>
+    /// Pre-resolved render data for "simple" sprites. A sprite is simple when it is
+    /// Dir1, non-animated, has no custom shaders, and no post-processing.
+    /// </summary>
+    internal struct SimpleSpriteCache
+    {
+        /// <summary>False means the sprite must use the full render path.</summary>
+        public bool Valid;
+
+        /// <summary>Number of visible layers cached (1 to MaxSimpleLayers).</summary>
+        public int LayerCount;
+
+        public const int MaxSimpleLayers = 8;
+
+        // Fixed-size inline storage for layer data. Avoids heap allocation.
+        public SimpleLayerData Layer0;
+        public SimpleLayerData Layer1;
+        public SimpleLayerData Layer2;
+        public SimpleLayerData Layer3;
+        public SimpleLayerData Layer4;
+        public SimpleLayerData Layer5;
+        public SimpleLayerData Layer6;
+        public SimpleLayerData Layer7;
+
+        /// <summary>
+        /// Get a reference to the layer data at the given index.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.UnscopedRef]
+        public ref SimpleLayerData GetLayer(int index)
+        {
+            if ((uint)index >= MaxSimpleLayers)
+                throw new IndexOutOfRangeException(nameof(index));
+
+            return ref System.Runtime.CompilerServices.Unsafe.Add(ref Layer0, index);
+        }
+    }
+
+    internal struct SimpleLayerData
+    {
+        /// <summary>Pre-resolved texture from state.GetFrame(South, 0).</summary>
+        public Texture Texture;
+
+        /// <summary>sprite.color * layer.Color, pre-multiplied at cache build time.</summary>
+        public Color Color;
+
+        /// <summary>Pre-computed quad from texture.Size / PixelsPerMeter, centered.</summary>
+        public Box2 Quad;
+
+        /// <summary>The layer's local transform matrix.</summary>
+        public Matrix3x2 LayerMatrix;
+
+        /// <summary>If true, color is negative-encoded at render time for unshaded rendering.</summary>
+        public bool UnShaded;
     }
 }
