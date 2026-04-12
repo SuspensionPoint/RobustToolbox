@@ -61,6 +61,7 @@ namespace Robust.Client.Graphics.Clyde
         // Some is applied while the batch is being created (e.g. simple texture draw calls).
         // For DrawPrimitives OTOH the model matrix is passed along with the render command so is applied in the shader.
         private Matrix3x2 _currentMatrixModel = Matrix3x2.Identity;
+        private bool _gpuVertexTransformEnabled;
 
         // Buffers and data for the batching system. Written into during (queue) and processed during (submit).
         private readonly Vertex2D[] BatchVertexData = new Vertex2D[MaxBatchQuads * 4];
@@ -609,7 +610,7 @@ namespace Robust.Client.Graphics.Clyde
             in Box2 texCoords)
         {
             EnsureBatchSpaceAvailable(4, GetQuadBatchIndexCount());
-            EnsureBatchState(texture, true, GetQuadBatchPrimitiveType(), _queuedShader);
+            EnsureBatchState(texture, true, GetQuadBatchPrimitiveType(), _queuedShader, Matrix3x2.Identity);
 
             // TODO RENDERING
             // It's probably better to do this on the GPU.
@@ -716,7 +717,7 @@ namespace Robust.Client.Graphics.Clyde
         private void DrawLine(Vector2 a, Vector2 b, Color color)
         {
             EnsureBatchSpaceAvailable(2, 0);
-            EnsureBatchState(_stockTextureWhite.TextureId, false, BatchPrimitiveType.LineList, _queuedShader);
+            EnsureBatchState(_stockTextureWhite.TextureId, false, BatchPrimitiveType.LineList, _queuedShader, Matrix3x2.Identity);
 
             a = Vector2.Transform(a, _currentMatrixModel);
             b = Vector2.Transform(b, _currentMatrixModel);
@@ -794,7 +795,7 @@ namespace Robust.Client.Graphics.Clyde
         ///     If not, the current batch is finished and a new one is started.
         /// </summary>
         private void EnsureBatchState(ClydeHandle textureId, bool indexed,
-            BatchPrimitiveType primitiveType, ClydeHandle shaderInstance)
+            BatchPrimitiveType primitiveType, ClydeHandle shaderInstance, in Matrix3x2 modelMatrix)
         {
             if (_batchMetaData.HasValue)
             {
@@ -802,7 +803,8 @@ namespace Robust.Client.Graphics.Clyde
                 if (metaData.TextureId == textureId &&
                     indexed == metaData.Indexed &&
                     metaData.PrimitiveType == primitiveType &&
-                    metaData.ShaderInstance == shaderInstance)
+                    metaData.ShaderInstance == shaderInstance &&
+                    metaData.ModelMatrix == modelMatrix)
                 {
                     // Data matches, don't have to do anything.
                     return;
@@ -814,7 +816,7 @@ namespace Robust.Client.Graphics.Clyde
 
             // ... and start another.
             _batchMetaData = new BatchMetaData(textureId, indexed, primitiveType,
-                indexed ? BatchIndexIndex : BatchVertexIndex, shaderInstance);
+                indexed ? BatchIndexIndex : BatchVertexIndex, shaderInstance, modelMatrix);
 
             /*
             if (textureId != default)
@@ -849,7 +851,7 @@ namespace Robust.Client.Graphics.Clyde
             command.DrawBatch.ShaderInstance = metaData.ShaderInstance;
 
             command.DrawBatch.Count = currentIndex - metaData.StartIndex;
-            command.DrawBatch.ModelMatrix = Matrix3x2.Identity;
+            command.DrawBatch.ModelMatrix = metaData.ModelMatrix;
 
             _debugStats.LastBatches += 1;
         }
@@ -1090,15 +1092,17 @@ namespace Robust.Client.Graphics.Clyde
             public readonly BatchPrimitiveType PrimitiveType;
             public readonly int StartIndex;
             public readonly ClydeHandle ShaderInstance;
+            public readonly Matrix3x2 ModelMatrix;
 
             public BatchMetaData(ClydeHandle textureId, bool indexed, BatchPrimitiveType primitiveType,
-                int startIndex, ClydeHandle shaderInstance)
+                int startIndex, ClydeHandle shaderInstance, in Matrix3x2 modelMatrix)
             {
                 TextureId = textureId;
                 Indexed = indexed;
                 PrimitiveType = primitiveType;
                 StartIndex = startIndex;
                 ShaderInstance = shaderInstance;
+                ModelMatrix = modelMatrix;
             }
         }
 
