@@ -11,7 +11,7 @@ namespace Robust.Shared.ContentPack;
 /// This means it can be spawned dynamically with <see cref="IDynamicTypeFactory"/>.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
-internal sealed class ContentAccessAllowedAttribute : Attribute
+public sealed class ContentAccessAllowedAttribute : Attribute
 {
 
 }

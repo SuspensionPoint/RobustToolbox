@@ -1,3 +1,4 @@
+using System;
 using Robust.Shared;
 using Robust.Shared.Utility;
 
@@ -9,6 +10,28 @@ namespace Robust.Client
         ///     Whether content sandboxing will be enabled & enforced.
         /// </summary>
         public bool Sandboxing { get; init; } = true;
+
+        /// <summary>
+        ///     On Windows, if set, RT will wrap this existing HWND as its main
+        ///     window instead of creating a new OS window. Used for embedding
+        ///     RT inside another .NET host app such as a WPF window that wants
+        ///     to render RT content into an <c>HwndHost</c> child. Ownership of
+        ///     the HWND stays with the host application and RT will not
+        ///     destroy it on shutdown.
+        /// </summary>
+        public IntPtr? MainWindowExternalHwnd { get; init; }
+
+        /// <summary>
+        ///     Optional callback invoked on the game thread after RT finishes
+        ///     initializing (all systems resolved, content loaded, state
+        ///     machine ready) but before the main game loop starts. Embedding
+        ///     hosts use this to configure starting state, for example
+        ///     switching to a custom state or loading a map, without having
+        ///     to fork the RT bootstrap flow. Exceptions thrown by the
+        ///     callback are logged and swallowed so a buggy host does not
+        ///     take down RT startup.
+        /// </summary>
+        public Action? PostInitCallback { get; init; }
 
         // TODO: Expose mounting methods to games using Robust as a library.
         /// <summary>

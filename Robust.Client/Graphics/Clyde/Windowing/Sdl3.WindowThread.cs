@@ -237,6 +237,7 @@ internal partial class Clyde
         {
             public nint Window;
             public bool HadOwner;
+            public bool OwnsWindow = true;
         }
 
         private sealed class Sdl3WindowCreateResult

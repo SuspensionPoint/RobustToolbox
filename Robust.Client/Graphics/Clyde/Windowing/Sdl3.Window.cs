@@ -137,6 +137,8 @@ internal partial class Clyde
             // So we send the TCS back to the game thread
             // which processes events in the correct order and has better control of stuff during init.
             var reg = WinThreadSetupWindow(window, context);
+            reg.OwnsWindow = cmd.Parameters.WindowOwned;
+            reg.IsExternalWindow = cmd.Parameters.ExternalHWnd.HasValue;
 
             SendEvent(new EventWindowCreate
             {
@@ -147,7 +149,13 @@ internal partial class Clyde
 
         private void WinThreadWinDestroy(CmdWinDestroy cmd)
         {
-            SDL.SDL_DestroyWindow(cmd.Window);
+            if (cmd.OwnsWindow)
+            {
+                SDL.SDL_DestroyWindow(cmd.Window);
+            }
+            // If we do not own the window (external HWND embedding) the host app
+            // owns the underlying HWND. Calling SDL_DestroyWindow here would tear
+            // down a window the host still expects to be alive.
 #if MACOS
             SendEvent(new EventWindowDestroyed());
 #endif
@@ -219,6 +227,17 @@ internal partial class Clyde
 
             if ((parameters.Styles & OSWindowStyles.NoTitleBar) != 0)
                 SDL.SDL_SetBooleanProperty(createProps, SDL.SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
+
+            if (parameters.ExternalHWnd is { } externalHwnd)
+            {
+                // Wrap a host owned HWND. SDL3 will not create a new OS window but
+                // will still attach its own OpenGL context and message subclass to
+                // the provided HWND. The host keeps ownership of the window itself.
+                SDL.SDL_SetPointerProperty(
+                    createProps,
+                    SDL.SDL_PROP_WINDOW_CREATE_WIN32_HWND_POINTER,
+                    externalHwnd);
+            }
 
             if (ownerWindow != 0)
             {
@@ -360,7 +379,8 @@ internal partial class Clyde
             SendCmd(new CmdWinDestroy
             {
                 Window = reg.Sdl3Window,
-                HadOwner = window.Owner != null
+                HadOwner = window.Owner != null,
+                OwnsWindow = reg.OwnsWindow,
             });
         }
 
@@ -698,6 +718,11 @@ internal partial class Clyde
             public nint WindowsHwnd;
             public nint X11Display;
             public uint X11Id;
+
+            // External HWND embedding state. OwnsWindow defaults to true so
+            // windows created by RT itself still get destroyed normally.
+            public bool OwnsWindow = true;
+            public bool IsExternalWindow;
         }
     }
 }

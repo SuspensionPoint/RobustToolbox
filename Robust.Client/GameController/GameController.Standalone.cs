@@ -163,6 +163,22 @@ namespace Robust.Client
                 return;
             }
 
+            // Give embedding hosts a chance to configure starting state (for
+            // example switching to a custom state or loading a map) before
+            // the main loop begins. We swallow exceptions from the callback
+            // so a buggy host does not take RT startup down with it.
+            if (Options.PostInitCallback is { } postInit)
+            {
+                try
+                {
+                    postInit();
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"GameControllerOptions.PostInitCallback threw: {ex}");
+                }
+            }
+
             if (!_dontStart)
             {
                 DebugTools.AssertNotNull(_mainLoop);

@@ -145,7 +145,9 @@ namespace Robust.Client.Graphics.Clyde
                 Width = width,
                 Height = height,
                 Monitor = monitor,
-                Fullscreen = fullscreen
+                Fullscreen = fullscreen,
+                ExternalHWnd = ExternalMainWindowHwnd,
+                WindowOwned = !ExternalMainWindowHwnd.HasValue,
             };
 
             var (reg, err) = SharedWindowCreate(glSpec, parameters, null, isMain: true);

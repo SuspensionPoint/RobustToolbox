@@ -175,6 +175,9 @@ namespace Robust.Client.Graphics.Clyde
             }
         }
 
+        /// <inheritdoc />
+        public IntPtr? ExternalMainWindowHwnd { get; set; }
+
         public bool InitializePostWindowing()
         {
             _gameThread = Thread.CurrentThread;

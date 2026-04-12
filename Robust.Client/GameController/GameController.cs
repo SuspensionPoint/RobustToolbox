@@ -151,6 +151,10 @@ namespace Robust.Client
             _loadscr.Initialize(42);
 
             _loadscr.BeginLoadingSection("Init graphics", dontRender: true);
+            // Pass the host supplied external HWND (if any) into Clyde before
+            // it creates the main window, so the main window ends up wrapping
+            // the host's HWND instead of a fresh OS window.
+            _clyde.ExternalMainWindowHwnd = Options.MainWindowExternalHwnd;
             _clyde.InitializePostWindowing();
             _clyde.SetWindowTitle(GameTitle());
             _loadscr.EndLoadingSection();
