@@ -61,7 +61,6 @@ namespace Robust.Client.Graphics.Clyde
         // Some is applied while the batch is being created (e.g. simple texture draw calls).
         // For DrawPrimitives OTOH the model matrix is passed along with the render command so is applied in the shader.
         private Matrix3x2 _currentMatrixModel = Matrix3x2.Identity;
-        private bool _gpuVertexTransformEnabled;
 
         // Buffers and data for the batching system. Written into during (queue) and processed during (submit).
         private readonly Vertex2D[] BatchVertexData = new Vertex2D[MaxBatchQuads * 4];
@@ -610,22 +609,14 @@ namespace Robust.Client.Graphics.Clyde
             in Box2 texCoords)
         {
             EnsureBatchSpaceAvailable(4, GetQuadBatchIndexCount());
+            EnsureBatchState(texture, true, GetQuadBatchPrimitiveType(), _queuedShader);
 
-            if (_gpuVertexTransformEnabled)
-            {
-                // GPU path: pass model matrix to the batch, write raw object-space positions.
-                // The vertex shader multiplies: projectionMatrix * viewMatrix * modelMatrix * vec3(aPos, 1.0)
-                EnsureBatchState(texture, true, GetQuadBatchPrimitiveType(), _queuedShader, _currentMatrixModel);
-            }
-            else
-            {
-                // CPU path (legacy): bake transform into vertex positions, pass identity to batch.
-                EnsureBatchState(texture, true, GetQuadBatchPrimitiveType(), _queuedShader, Matrix3x2.Identity);
-                bl = Vector2.Transform(bl, _currentMatrixModel);
-                br = Vector2.Transform(br, _currentMatrixModel);
-                tr = Vector2.Transform(tr, _currentMatrixModel);
-                tl = tr + bl - br;
-            }
+            // TODO RENDERING
+            // It's probably better to do this on the GPU.
+            bl = Vector2.Transform(bl, _currentMatrixModel);
+            br = Vector2.Transform(br, _currentMatrixModel);
+            tr = Vector2.Transform(tr, _currentMatrixModel);
+            tl = tr + bl - br;
 
             // TODO: split batch if necessary.
             var vIdx = BatchVertexIndex;
@@ -725,17 +716,10 @@ namespace Robust.Client.Graphics.Clyde
         private void DrawLine(Vector2 a, Vector2 b, Color color)
         {
             EnsureBatchSpaceAvailable(2, 0);
+            EnsureBatchState(_stockTextureWhite.TextureId, false, BatchPrimitiveType.LineList, _queuedShader);
 
-            if (_gpuVertexTransformEnabled)
-            {
-                EnsureBatchState(_stockTextureWhite.TextureId, false, BatchPrimitiveType.LineList, _queuedShader, _currentMatrixModel);
-            }
-            else
-            {
-                EnsureBatchState(_stockTextureWhite.TextureId, false, BatchPrimitiveType.LineList, _queuedShader, Matrix3x2.Identity);
-                a = Vector2.Transform(a, _currentMatrixModel);
-                b = Vector2.Transform(b, _currentMatrixModel);
-            }
+            a = Vector2.Transform(a, _currentMatrixModel);
+            b = Vector2.Transform(b, _currentMatrixModel);
 
             // TODO: split batch if necessary.
             var vIdx = BatchVertexIndex;
@@ -810,7 +794,7 @@ namespace Robust.Client.Graphics.Clyde
         ///     If not, the current batch is finished and a new one is started.
         /// </summary>
         private void EnsureBatchState(ClydeHandle textureId, bool indexed,
-            BatchPrimitiveType primitiveType, ClydeHandle shaderInstance, in Matrix3x2 modelMatrix)
+            BatchPrimitiveType primitiveType, ClydeHandle shaderInstance)
         {
             if (_batchMetaData.HasValue)
             {
@@ -818,8 +802,7 @@ namespace Robust.Client.Graphics.Clyde
                 if (metaData.TextureId == textureId &&
                     indexed == metaData.Indexed &&
                     metaData.PrimitiveType == primitiveType &&
-                    metaData.ShaderInstance == shaderInstance &&
-                    metaData.ModelMatrix == modelMatrix)
+                    metaData.ShaderInstance == shaderInstance)
                 {
                     // Data matches, don't have to do anything.
                     return;
@@ -831,7 +814,7 @@ namespace Robust.Client.Graphics.Clyde
 
             // ... and start another.
             _batchMetaData = new BatchMetaData(textureId, indexed, primitiveType,
-                indexed ? BatchIndexIndex : BatchVertexIndex, shaderInstance, modelMatrix);
+                indexed ? BatchIndexIndex : BatchVertexIndex, shaderInstance);
 
             /*
             if (textureId != default)
@@ -866,7 +849,7 @@ namespace Robust.Client.Graphics.Clyde
             command.DrawBatch.ShaderInstance = metaData.ShaderInstance;
 
             command.DrawBatch.Count = currentIndex - metaData.StartIndex;
-            command.DrawBatch.ModelMatrix = metaData.ModelMatrix;
+            command.DrawBatch.ModelMatrix = Matrix3x2.Identity;
 
             _debugStats.LastBatches += 1;
         }
@@ -1107,17 +1090,15 @@ namespace Robust.Client.Graphics.Clyde
             public readonly BatchPrimitiveType PrimitiveType;
             public readonly int StartIndex;
             public readonly ClydeHandle ShaderInstance;
-            public readonly Matrix3x2 ModelMatrix;
 
             public BatchMetaData(ClydeHandle textureId, bool indexed, BatchPrimitiveType primitiveType,
-                int startIndex, ClydeHandle shaderInstance, in Matrix3x2 modelMatrix)
+                int startIndex, ClydeHandle shaderInstance)
             {
                 TextureId = textureId;
                 Indexed = indexed;
                 PrimitiveType = primitiveType;
                 StartIndex = startIndex;
                 ShaderInstance = shaderInstance;
-                ModelMatrix = modelMatrix;
             }
         }
 

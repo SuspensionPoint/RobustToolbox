@@ -1019,13 +1019,6 @@ namespace Robust.Shared
         public static readonly CVarDef<bool> RenderSpriteSimpleFastPath =
             CVarDef.Create("render.sprite_simple_fast_path", true, CVar.CLIENTONLY);
 
-        /// <summary>
-        /// When enabled, sprite vertex transforms are done on the GPU via the model matrix
-        /// uniform instead of on the CPU. Reduces CPU cost at the expense of more batch breaks.
-        /// </summary>
-        public static readonly CVarDef<bool> RenderGpuVertexTransform =
-            CVarDef.Create("render.gpu_vertex_transform", true, CVar.CLIENTONLY);
-
         public static readonly CVarDef<string> RenderFOVColor =
             CVarDef.Create("render.fov_color", Color.Black.ToHex(), CVar.REPLICATED | CVar.SERVER);
 
