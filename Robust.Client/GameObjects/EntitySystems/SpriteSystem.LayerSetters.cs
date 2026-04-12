@@ -178,6 +178,7 @@ public sealed partial class SpriteSystem
         QueueUpdateIsInert(layer.Owner);
         layer.BoundsDirty = true;
         layer.Owner.Comp.BoundsDirty = true;
+        layer.Owner.Comp.InvalidateSimpleCache();
     }
 
     #endregion
@@ -273,6 +274,7 @@ public sealed partial class SpriteSystem
         _tree.QueueTreeUpdate(layer.Owner);
         layer.BoundsDirty = true;
         layer.Owner.Comp.BoundsDirty = true;
+        layer.Owner.Comp.InvalidateSimpleCache();
     }
 
     #endregion
@@ -311,6 +313,7 @@ public sealed partial class SpriteSystem
         _tree.QueueTreeUpdate(layer.Owner);
         layer.BoundsDirty = true;
         layer.Owner.Comp.BoundsDirty = true;
+        layer.Owner.Comp.InvalidateSimpleCache();
     }
 
     #endregion
@@ -349,6 +352,7 @@ public sealed partial class SpriteSystem
         _tree.QueueTreeUpdate(layer.Owner);
         layer.BoundsDirty = true;
         layer.Owner.Comp.BoundsDirty = true;
+        layer.Owner.Comp.InvalidateSimpleCache();
     }
 
     #endregion
@@ -386,6 +390,7 @@ public sealed partial class SpriteSystem
         QueueUpdateIsInert(layer.Owner);
         _tree.QueueTreeUpdate(layer.Owner);
         layer.Owner.Comp.BoundsDirty = true;
+        layer.Owner.Comp.InvalidateSimpleCache();
     }
 
     #endregion
@@ -417,6 +422,7 @@ public sealed partial class SpriteSystem
         DebugTools.AssertEqual(layer.Owner.Comp.Layers[layer.Index], layer);
 
         layer.Color = value;
+        layer.Owner.Comp.InvalidateSimpleCache();
     }
 
     #endregion
@@ -448,6 +454,7 @@ public sealed partial class SpriteSystem
         DebugTools.AssertEqual(layer.Owner.Comp.Layers[layer.Index], layer);
 
         layer.DirOffset = value;
+        layer.Owner.Comp.InvalidateSimpleCache();
     }
 
     #endregion

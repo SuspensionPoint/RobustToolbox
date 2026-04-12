@@ -36,6 +36,7 @@ public sealed partial class SpriteSystem
             in sprite.Comp.offset,
             in sprite.Comp.rotation,
             in sprite.Comp.scale);
+        sprite.Comp.InvalidateSimpleCache();
     }
 
     public void SetRotation(Entity<SpriteComponent?> sprite, Angle value)
@@ -48,6 +49,7 @@ public sealed partial class SpriteSystem
             in sprite.Comp.offset,
             in sprite.Comp.rotation,
             in sprite.Comp.scale);
+        sprite.Comp.InvalidateSimpleCache();
     }
 
     public void SetOffset(Entity<SpriteComponent?> sprite, Vector2 value)
@@ -60,6 +62,7 @@ public sealed partial class SpriteSystem
             in sprite.Comp.offset,
             in sprite.Comp.rotation,
             in sprite.Comp.scale);
+        sprite.Comp.InvalidateSimpleCache();
     }
     #endregion
 
@@ -73,6 +76,7 @@ public sealed partial class SpriteSystem
 
         sprite.Comp._visible = value;
         _tree.QueueTreeUpdate(sprite!);
+        sprite.Comp.InvalidateSimpleCache();
     }
 
     public void SetDrawDepth(Entity<SpriteComponent?> sprite, int value)
@@ -89,6 +93,7 @@ public sealed partial class SpriteSystem
             return;
 
         sprite.Comp.color = value;
+        sprite.Comp.InvalidateSimpleCache();
     }
 
     /// <summary>
@@ -127,6 +132,8 @@ public sealed partial class SpriteSystem
                 layer.Texture = null;
             }
         }
+
+        sprite.Comp.InvalidateSimpleCache();
     }
 
     public void SetContainerOccluded(Entity<SpriteComponent?> sprite, bool value)
@@ -162,5 +169,6 @@ public sealed partial class SpriteSystem
         sprite.Comp.GranularLayersRendering = value;
         _tree.QueueTreeUpdate(sprite!);
         DirtyBounds(sprite!);
+        sprite.Comp.InvalidateSimpleCache();
     }
 }

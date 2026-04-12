@@ -216,17 +216,23 @@ namespace Robust.Client.GameObjects
 
         [ViewVariables(VVAccess.ReadWrite)] internal bool _inertUpdateQueued;
 
+        private ShaderInstance? _postShader;
+
         /// <summary>
         ///     Shader instance to use when drawing the final sprite to the world.
         /// </summary>
         [ViewVariables(VVAccess.ReadWrite)]
         public ShaderInstance? PostShader
         {
-            get;
+            get => _postShader;
             // This will get obsoleted, but I only want to mark it as obsolete when multi-shader support is added, so
             // that people can use the appropriate method and don't migrate to an incorrect new method that wont
             // be obsoleted.
-            set;
+            set
+            {
+                _postShader = value;
+                InvalidateSimpleCache();
+            }
         }
 
         /// <summary>

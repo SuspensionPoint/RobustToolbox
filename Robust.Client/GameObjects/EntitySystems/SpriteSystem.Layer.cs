@@ -83,6 +83,7 @@ public sealed partial class SpriteSystem
 
         layer.Owner = default;
         layer.Index = -1;
+        sprite.Comp.InvalidateSimpleCache();
 
 #if DEBUG
         foreach (var otherLayer in sprite.Comp.Layers)
@@ -151,6 +152,7 @@ public sealed partial class SpriteSystem
             _tree.QueueTreeUpdate(sprite!);
             QueueUpdateIsInert(sprite!);
         }
+        sprite.Comp.InvalidateSimpleCache();
         return layer.Index;
     }
 
