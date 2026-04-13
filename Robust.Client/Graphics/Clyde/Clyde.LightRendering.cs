@@ -601,14 +601,21 @@ namespace Robust.Client.Graphics.Clyde
             if (_cfg.GetCVar(CVars.LightBlur))
                 BlurRenderTarget(viewport, viewport.LightRenderTarget, viewport.LightBlurTarget, eye, 14f);
 
-            using (_prof.Group("BlurOntoWalls"))
+            // Wall bleed blur softens the hard FOV edge on walls. Skip when
+            // FOV is disabled (e.g. editor mode) — there is no hard edge to
+            // soften, and the blur reads black at texture borders which
+            // creates an unwanted dark ring around the viewport.
+            if (eye.DrawFov)
             {
-                BlurOntoWalls(viewport, eye);
-            }
+                using (_prof.Group("BlurOntoWalls"))
+                {
+                    BlurOntoWalls(viewport, eye);
+                }
 
-            using (_prof.Group("MergeWallLayer"))
-            {
-                MergeWallLayer(viewport);
+                using (_prof.Group("MergeWallLayer"))
+                {
+                    MergeWallLayer(viewport);
+                }
             }
 
             BindRenderTargetFull(viewport.RenderTarget);
