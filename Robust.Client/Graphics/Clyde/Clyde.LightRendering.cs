@@ -381,7 +381,8 @@ namespace Robust.Client.Graphics.Clyde
             {
                 UpdateOcclusionGeometry(mapId, expandedBounds, eyeTransform);
 
-                DrawFov(viewport, eye);
+                if (eye.DrawFov)
+                    DrawFov(viewport, eye);
 
                 if (_lightManager.DrawLighting && drawShadows)
                 {
@@ -480,7 +481,8 @@ namespace Robust.Client.Graphics.Clyde
             DebugTools.Assert(oldTarget.Equals(_currentRenderTarget));
             DebugTools.Assert(_currentBoundRenderTarget.TextureHandle.Equals(viewport.LightRenderTarget.Texture.TextureId));
 
-            ApplyLightingFovToBuffer(viewport, eye);
+            if (eye.DrawFov)
+                ApplyLightingFovToBuffer(viewport, eye);
 
             var lightShader = _loadedShaders[_enableSoftShadows ? _lightSoftShaderHandle : _lightHardShaderHandle]
                 .Program;
