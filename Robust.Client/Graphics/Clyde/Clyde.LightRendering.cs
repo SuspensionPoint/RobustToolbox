@@ -480,7 +480,12 @@ namespace Robust.Client.Graphics.Clyde
             var oldScissor = _currentScissorState;
             var state = PushRenderStateFull();
 
-            RenderOverlays(viewport, OverlaySpace.BeforeLighting, worldAABB, worldBounds);
+            // BeforeLighting overlays include content-side planet lighting (ambient,
+            // roof occlusion, sun shadows) which clear and replace the light buffer
+            // with a limited-size target. Skip when FOV is disabled to avoid
+            // overwriting our full-coverage ambient clear.
+            if (eye.DrawFov)
+                RenderOverlays(viewport, OverlaySpace.BeforeLighting, worldAABB, worldBounds);
             PopRenderStateFull(state);
 
             DebugTools.Assert(oldScissor.Equals(_currentScissorState));
