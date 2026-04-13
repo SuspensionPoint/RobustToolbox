@@ -609,7 +609,7 @@ namespace Robust.Client.Graphics.Clyde
 
             CheckGlError();
 
-            if (_cfg.GetCVar(CVars.LightBlur))
+            if (_cfg.GetCVar(CVars.LightBlur) && eye.DrawFov)
                 BlurRenderTarget(viewport, viewport.LightRenderTarget, viewport.LightBlurTarget, eye, 14f);
 
             // Wall bleed blur softens the hard FOV edge on walls. Skip when
