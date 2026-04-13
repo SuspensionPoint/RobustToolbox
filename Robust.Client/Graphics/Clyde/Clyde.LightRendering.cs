@@ -454,10 +454,19 @@ namespace Robust.Client.Graphics.Clyde
             DebugTools.Assert(_currentBoundRenderTarget.TextureHandle.Equals(viewport.LightRenderTarget.Texture.TextureId));
             CheckGlError();
 
-            var clearEv = new GetClearColorEvent();
-            _entityManager.EventBus.RaiseEvent(EventSource.Local, ref clearEv);
-
-            var clearColor = clearEv.Color ?? GetClearColor(mapUid);
+            Color clearColor;
+            if (!eye.DrawFov)
+            {
+                // No FOV: use a bright ambient so unlit areas aren't pitch black.
+                // Lights still add on top, so lit areas appear brighter than unlit.
+                clearColor = new Color(0.75f, 0.75f, 0.75f, 1f);
+            }
+            else
+            {
+                var clearEv = new GetClearColorEvent();
+                _entityManager.EventBus.RaiseEvent(EventSource.Local, ref clearEv);
+                clearColor = clearEv.Color ?? GetClearColor(mapUid);
+            }
             GLClearColor(clearColor);
             GL.ClearStencil(0xFF);
             GL.StencilMask(0xFF);
