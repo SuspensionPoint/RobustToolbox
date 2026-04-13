@@ -126,6 +126,7 @@ namespace Robust.Client.Graphics.Clyde
             _cfg.OnValueChanged(CVars.RenderTileEdges, RenderTileEdgesChanges, true);
             _cfg.OnValueChanged(CVars.RenderMinSpriteSize, v => _minSpriteSizeSquared = v * v, true);
             _cfg.OnValueChanged(CVars.RenderBucketSort, v => _useBucketSort = v, true);
+            _cfg.OnValueChanged(CVars.RenderCacheOccluders, b => { _cacheOccluders = b; _occlusionCacheValid = false; }, true);
             // I can't be bothered to tear down and set these threads up in a cvar change handler.
 
             // Windows and Linux can be trusted to not explode with threaded windowing,

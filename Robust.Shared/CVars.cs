@@ -1044,6 +1044,14 @@ namespace Robust.Shared
         public static readonly CVarDef<bool> RenderBucketSort =
             CVarDef.Create("render.bucket_sort", true, CVar.CLIENTONLY);
 
+        /// <summary>
+        /// Cache occluder geometry and shadow maps when the scene is static.
+        /// Skips expensive per-frame rebuilds when no occluders have changed
+        /// and the eye hasn't moved.
+        /// </summary>
+        public static readonly CVarDef<bool> RenderCacheOccluders =
+            CVarDef.Create("render.cache_occluders", true, CVar.CLIENTONLY);
+
         /*
          *  CONTROLS
          */

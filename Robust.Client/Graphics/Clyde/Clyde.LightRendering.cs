@@ -58,6 +58,15 @@ namespace Robust.Client.Graphics.Clyde
 
         // Occlusion geometry used to render shadows and FOV.
 
+        // Occluder geometry cache state.
+        private bool _cacheOccluders;
+        private uint _cachedOccluderGeneration;
+        private Vector2 _cachedEyePosition;
+        private Box2 _cachedExpandedBounds;
+        private int _cachedLightCount;
+        private bool _cachedDrawShadows;
+        private bool _occlusionCacheValid;
+
         // Amount of indices in _occlusionEbo, so how much we have to draw when drawing _occlusionVao.
         private int _occlusionDataLength;
 
@@ -357,9 +366,74 @@ namespace Robust.Client.Graphics.Clyde
 
             eye.GetViewMatrixNoOffset(out var eyeTransform, eye.Scale);
 
-            UpdateOcclusionGeometry(mapId, expandedBounds, eyeTransform);
+            // Check if we can skip the occluder geometry rebuild + shadow depth rendering.
+            var occluderSys = _entityManager.System<ClientOccluderSystem>();
+            var eyePos = eye.Position.Position;
+            var drawShadows = _lightManager.DrawShadows;
 
-            DrawFov(viewport, eye);
+            if (!_cacheOccluders
+                || !_occlusionCacheValid
+                || occluderSys.OccluderGeneration != _cachedOccluderGeneration
+                || eyePos != _cachedEyePosition
+                || expandedBounds != _cachedExpandedBounds
+                || count != _cachedLightCount
+                || drawShadows != _cachedDrawShadows)
+            {
+                UpdateOcclusionGeometry(mapId, expandedBounds, eyeTransform);
+
+                DrawFov(viewport, eye);
+
+                if (_lightManager.DrawLighting && drawShadows)
+                {
+                    using (DebugGroup("Draw shadow depth"))
+                    using (_prof.Group("Draw shadow depth"))
+                    {
+                        PrepareDepthDraw(RtToLoaded(_shadowRenderTarget));
+                        GL.CullFace(CullFaceMode.Back);
+                        CheckGlError();
+
+                        for (var i = 0; i < count; i++)
+                        {
+                            var (light, lightPos, _, _) = _lightsToRenderList[i];
+
+                            if (!light.CastShadows) continue;
+
+                            DrawOcclusionDepth(lightPos, ShadowMapSize, light.Radius, i);
+                        }
+
+                        FinalizeDepthDraw();
+                    }
+                }
+                else if (_lightManager.DrawLighting)
+                {
+                    // DrawLighting is on but shadows are off — still need to run the
+                    // depth pass to leave GL state consistent (clear + finalize).
+                    using (DebugGroup("Draw shadow depth"))
+                    using (_prof.Group("Draw shadow depth"))
+                    {
+                        PrepareDepthDraw(RtToLoaded(_shadowRenderTarget));
+                        GL.CullFace(CullFaceMode.Back);
+                        CheckGlError();
+                        FinalizeDepthDraw();
+                    }
+                }
+
+                // Update cache state.
+                _cachedOccluderGeneration = occluderSys.OccluderGeneration;
+                _cachedEyePosition = eyePos;
+                _cachedExpandedBounds = expandedBounds;
+                _cachedLightCount = count;
+                _cachedDrawShadows = drawShadows;
+                _occlusionCacheValid = true;
+            }
+            else
+            {
+                // Cache hit: FOV and shadow depth textures are still valid from last frame.
+                // We still need DrawFov to not run — the _fovRenderTarget persists in GPU memory.
+                // But we DO need to run the shadow depth pass setup/teardown for GL state if DrawLighting is on.
+                // Actually, GL state is reset by subsequent code (IsStencilling, viewport, bind RT, clear).
+                // So we can safely skip everything here.
+            }
 
             if (!_lightManager.DrawLighting)
             {
@@ -367,28 +441,6 @@ namespace Robust.Client.Graphics.Clyde
                 GL.Viewport(0, 0, viewport.Size.X, viewport.Size.Y);
                 CheckGlError();
                 return;
-            }
-
-            using (DebugGroup("Draw shadow depth"))
-            using (_prof.Group("Draw shadow depth"))
-            {
-                PrepareDepthDraw(RtToLoaded(_shadowRenderTarget));
-                GL.CullFace(CullFaceMode.Back);
-                CheckGlError();
-
-                if (_lightManager.DrawShadows)
-                {
-                    for (var i = 0; i < count; i++)
-                    {
-                        var (light, lightPos, _, _) = _lightsToRenderList[i];
-
-                        if (!light.CastShadows) continue;
-
-                        DrawOcclusionDepth(lightPos, ShadowMapSize, light.Radius, i);
-                    }
-                }
-
-                FinalizeDepthDraw();
             }
 
             IsStencilling = true;
@@ -1166,6 +1218,8 @@ namespace Robust.Client.Graphics.Clyde
 
         private void RegenLightRts(Viewport viewport)
         {
+            _occlusionCacheValid = false;
+
             // All of these depend on screen size so they have to be re-created if it changes.
 
             var lightMapSize = GetLightMapSize(viewport.Size);
@@ -1235,6 +1289,7 @@ namespace Robust.Client.Graphics.Clyde
 
         private void MaxShadowcastingLightsChanged(int newValue)
         {
+            _occlusionCacheValid = false;
             _maxShadowcastingLights = newValue;
             DebugTools.Assert(_maxLights >= _maxShadowcastingLights);
 

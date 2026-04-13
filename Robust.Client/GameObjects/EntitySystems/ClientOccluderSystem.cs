@@ -23,6 +23,12 @@ internal sealed class ClientOccluderSystem : OccluderSystem
     private readonly HashSet<EntityUid> _dirtyEntities = new();
     [Dependency] private readonly SharedMapSystem _mapSystem = default!;
 
+    /// <summary>
+    /// Incremented whenever any occluder is dirtied. Used by the renderer
+    /// to detect when cached occlusion geometry needs rebuilding.
+    /// </summary>
+    public uint OccluderGeneration { get; private set; }
+
     /// <inheritdoc />
     public override void Initialize()
     {
@@ -38,6 +44,7 @@ internal sealed class ClientOccluderSystem : OccluderSystem
             return;
 
         base.SetEnabled(uid, enabled, comp, meta);
+        OccluderGeneration++;
 
         var xform = Transform(uid);
         QueueTreeUpdate(uid, comp, xform);
@@ -46,6 +53,8 @@ internal sealed class ClientOccluderSystem : OccluderSystem
 
     private void OnShutdown(EntityUid uid, OccluderComponent comp, ComponentShutdown args)
     {
+        OccluderGeneration++;
+
         if (!Terminating(uid))
             QueueOccludedDirectionUpdate(uid, comp);
     }
@@ -93,6 +102,8 @@ internal sealed class ClientOccluderSystem : OccluderSystem
 
     private void QueueOccludedDirectionUpdate(EntityUid sender, OccluderComponent occluder, TransformComponent? xform = null)
     {
+        OccluderGeneration++;
+
         if (!Resolve(sender, ref xform))
             return;
 
